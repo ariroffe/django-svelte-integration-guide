@@ -118,6 +118,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+VITE_APP_DIR = BASE_DIR.joinpath("frontend")
+if DEBUG:
+    STATICFILES_DIRS = [
+        VITE_APP_DIR,
+    ]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 

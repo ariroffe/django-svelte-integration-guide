@@ -77,31 +77,7 @@ If you edit `frontend/src/App.svelte` you should see the changes immediately
 reflected in the browser (Vite's hot module reloading should be working).
 
 
-### 4. Edit the Vite configuration file
-
-Add the following two lines to the file located in `frontend/vite.config.js`
-
-```javascript
-// https://vitejs.dev/config/
-export default defineConfig({
-  build: { manifest: true },  // <-- new
-  base: "/static/",           // <-- new
-  plugins: [svelte()]
-})
-```
-
-The first tells Vite to create a `manifest.json` file when you build for
-production (i.e. when you run `npm run build`). As we will see later, the manifest
-will contain a list of the files that Vite created and their paths, so Django knows
-which files it needs to serve.
-
-The second addition tells Vite that the base public URL will be `/static/`.
-I.e. Svelte will prepend `/static/` to you JS asset imports, your css
-`url()` s, etc. This needs to coincide with the setting for Django's `STATIC_URL`
-(which is `/static` by default).
-
-
-### 5. Create a Django app
+### 4. Create a Django app
 
 I will call my new app `spa`, you can call it whatever you like 
 (`core` and `main` are other popular choices).
@@ -114,9 +90,177 @@ Remember to add `"spa"` (or whatever you called it) to `INSTALLED_APPS` inside
 `project/settings.py`.
 
 
+### 5. Create a base template, view and url
+
+Create a base template in ``spa/templates/frontend/base.html``. 
+For now, it should only contain the following:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Django + Svelte Integration</title>
+
+  <script type="module" src="http://localhost:3000/@vite/client"></script>
+</head>
+
+<body>
+  
+  <div id="app"></div>
+  
+  <!-- Use the port that npm run dev runs in. Point the URL to your main.js file. -->
+  <script type="module" src="http://localhost:5173/src/main.js"></script>
+
+</body>
+
+</html>
+```
+
+Change `spa/views.py` to the following:
+
+```python
+from django.views.generic import TemplateView
+
+class SpaView(TemplateView):
+    template_name = "frontend/base.html"
+```
+
+We also need to reference this view in `spa/urls.py` (create this file)
+
+```python
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.SpaView.as_view(), name='spa'),
+]
+```
+
+And include these urls in your global `project/urls.py` file:
+
+```python
+from django.contrib import admin
+from django.urls import path, include  # <-- changed
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path('', include('spa.urls')),  # <-- new
+]
+```
+
+Now open a terminal and run `npm run dev`. In a second terminal (*with the first one
+still open*) run `python manage.py runserver`. In your browser, navigate to 
+`http://localhost:8000/`. You should now be seeing Svelte's default page again. 
+But, notice that you are now rendering it *from Django's development server*.
+
+However, there is a problem. You are not seeing the Svelte and Vite logos. We'll fix
+this in the next section.
+
+
+### 6. Serving Svelte assets from Django in debug mode
+
+If you look at your `runserver`'s terminal log, you'll see that there are two requests
+that are returning a 404 response:
+
+```console
+[15/Sep/2022 22:23:29] "GET /vite.svg HTTP/1.1" 404 2261
+[15/Sep/2022 22:23:29] "GET /src/assets/svelte.svg HTTP/1.1" 404 2300
+```
+
+This is because the file at `frontend/src/App.svelte` contains the following lines:
+
+```sveltehtml
+<script>
+  import svelteLogo from './assets/svelte.svg'  // <-- here
+  (...)
+</script>
+
+<main>
+  <div>
+    <a href="https://vitejs.dev" target="_blank"> 
+      <img src="/vite.svg" class="logo" alt="Vite Logo" />  <!-- here -->
+    </a>
+    <a href="https://svelte.dev" target="_blank"> 
+      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />  <!-- here -->
+    </a>
+    (...)
+  </div>
+</main>
+```
+
+When the Django development server encounters (the compiled version of) these lines,
+it generates requests to those URLs, which it obviously cannot find (since there are no
+`assets` subdirectory and `vite.svg` file in your Django project's main directory).
+To fix this, we'll do three things.
+
+Firstly, to have a uniform way of importing assets from Svelte, move the `vite.svg` file
+from `frontend/public` into `frontend/src/assets`, and add the import in `App.svelte`
+
+```sveltehtml
+<script>
+  import svelteLogo from './assets/svelte.svg'
+  import viteLogo from './assets/vite.svg'  // <-- new
+  (...)
+</script>
+<main>
+  (...)
+      <img src={viteLogo} class="logo" alt="Vite Logo" />  <!-- changed -->
+  (...)
+</main>>
+```
+
+Secondly, add the following line to the file located in `frontend/vite.config.js`
+
+```javascript
+// https://vitejs.dev/config/
+export default defineConfig({
+  base: "/static/",  // <-- new
+  plugins: [svelte()]
+})
+```
+
+The value needs to coincide with the setting for Django's `STATIC_URL`
+(which is `static/` by default).
+
+This tells Vite that the base public URL will be `/static/`.  I.e. Svelte will 
+prepend `/static/` to you JS asset imports, your css `url()` calls, etc. If you run
+both the Django and Svelte dev servers simultaneously again, you'll see that now
+the 404 responses are to the following two requests:
+
+```console
+[15/Sep/2022 22:37:50] "GET /static/src/assets/svelte.svg HTTP/1.1" 404 1822
+[15/Sep/2022 22:37:50] "GET /static/src/assets/vite.svg HTTP/1.1" 404 1816
+```
+
+Now, we can just tell Django to look for static files in the Svelte project directory. 
+In your `project/settings.py` add the following two lines:
+
+```python
+# Point it to the directory where your Svelte project is located
+VITE_APP_DIR = BASE_DIR.joinpath("frontend")
+if DEBUG:
+    STATICFILES_DIRS = [
+        VITE_APP_DIR,
+    ]
+```
+
+This is kind of a hack. You *do not* want to do this in production, hence why I added
+the `if DEBUG:` clause (we'll also add an `else` clause later on, pointing to the compiled
+files that `npm run build` generates).
+
+Run both servers at the same time again and you should now see Svelte's default page
+with the images rendered correctly.
+
 ## Making it production ready
 
-Lalala
+There are a lot of things to do to make a Django project production ready.
+**This guide will only cover the stuff related to Svelte.** Do not run your project
+in production with *just these* changes.
+
 
 ## Acknowledgements
 
