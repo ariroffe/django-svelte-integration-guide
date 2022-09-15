@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "django-svelte"
+version = "0.1.0"
+description = "Django and Svelte Integration"
+authors = ["Ariel Roffe <arielroffe@filo.uba.ar>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "django_svelte"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Django = "^4.1.1"
+whitenoise = "^6.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
