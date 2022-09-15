@@ -39,6 +39,7 @@ poetry init
 poetry add django
 ```
 
+
 ### 2. Start your Django project
 
 ```console
@@ -54,6 +55,7 @@ current working directory (which in my case is `django_svelte/`).
 You can check that this worked correctly by running `python manage.py runserver` in your terminal. 
 Then open your browser and navigate to `http://localhost:8000/`. 
 You should see the default Django page.
+
 
 ### 3. Setup a Svelte template project
 
@@ -74,5 +76,48 @@ go to `http://localhost:5173/`. You should see the default Vite + Svelte page.
 If you edit `frontend/src/App.svelte` you should see the changes immediately 
 reflected in the browser (Vite's hot module reloading should be working).
 
+
+### 4. Edit the Vite configuration file
+
+Add the following two lines to the file located in `frontend/vite.config.js`
+
+```javascript
+// https://vitejs.dev/config/
+export default defineConfig({
+  build: { manifest: true },  // <-- new
+  base: "/static/",           // <-- new
+  plugins: [svelte()]
+})
+```
+
+The first tells Vite to create a `manifest.json` file when you build for
+production (i.e. when you run `npm run build`). As we will see later, the manifest
+will contain a list of the files that Vite created and their paths, so Django knows
+which files it needs to serve.
+
+The second addition tells Vite that the base public URL will be `/static/`.
+I.e. Svelte will prepend `/static/` to you JS asset imports, your css
+`url()` s, etc. This needs to coincide with the setting for Django's `STATIC_URL`
+(which is `/static` by default).
+
+
+### 5. Create a Django app
+
+I will call my new app `spa`, you can call it whatever you like 
+(`core` and `main` are other popular choices).
+
+```console
+python manage.py startapp spa
+```
+
+Remember to add `"spa"` (or whatever you called it) to `INSTALLED_APPS` inside 
+`project/settings.py`.
+
+
+## Making it production ready
+
+Lalala
+
 ## Acknowledgements
 
+Lelele
