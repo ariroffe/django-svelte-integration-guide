@@ -1,3 +1,5 @@
+{% load render_svelte %}
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,15 +8,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Django + Svelte Integration</title>
 
-  <script type="module" src="http://localhost:3000/@vite/client"></script>
+  {% if debug %}
+    <script type="module" src="http://localhost:3000/@vite/client"></script>
+  {% endif %}
 </head>
 
 <body>
 
   <div id="app"></div>
 
-  <!-- Use the port that npm run dev runs in. Point the URL to your main.js file. -->
-  <script type="module" src="http://localhost:5173/src/main.js"></script>
+  {% if debug %}
+    <script type="module" src="http://localhost:5173/src/main.js"></script>
+  {% else %}
+    {% render_svelte %}
+  {% endif %}
 
 </body>
 
