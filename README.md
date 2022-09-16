@@ -35,7 +35,7 @@ pip install django
 ```
 
 - Poetry
-```
+```console
 poetry init
 poetry add django
 ```
@@ -211,7 +211,7 @@ from `frontend/public` into `frontend/src/assets`, and add the import in `App.sv
   (...)
       <img src={viteLogo} class="logo" alt="Vite Logo" />  <!-- changed -->
   (...)
-</main>>
+</main>
 ```
 
 Secondly, add the following line to the file located in `frontend/vite.config.js`
